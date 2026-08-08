@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PM Lab — 프로젝트 관리 실습 콘솔</title>
+<style>
+  :root{
+    --ink:#141b26; --paper:#f5f2ea; --panel:#fbfaf6; --line:#d9d3c4;
+    --steel:#2b4a6f; --steel-lo:#5e7ea3; --amber:#c07d2a; --amber-lo:#e8c896;
+    --sage:#4a7a5c; --clay:#a8463a; --plum:#6b4a7a;
+    --muted:#6f6a5d; --shadow:0 1px 0 rgba(20,27,38,.04),0 8px 30px -18px rgba(20,27,38,.35);
+    --mono:'DM Mono','SFMono-Regular',ui-monospace,Menlo,monospace;
+    --sans:'Inter','Pretendard',-apple-system,system-ui,sans-serif;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+
+  .shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+  .rail{background:var(--ink);color:#e8e4d8;padding:22px 0;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .brand{padding:0 22px 20px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:14px}
+  .brand h1{font-size:15px;margin:0;letter-spacing:.02em;font-weight:700}
+  .brand .tag{font-family:var(--mono);font-size:10.5px;color:#8f8a7c;letter-spacing:.12em;text-transform:uppercase;margin-top:6px}
+  .navsec{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:#7a7568;padding:14px 22px 6px}
+  .navitem{display:flex;align-items:center;gap:11px;padding:9px 22px;cursor:pointer;font-size:13px;color:#cfcabb;border-left:3px solid transparent;transition:.12s}
+  .navitem:hover{background:rgba(255,255,255,.04);color:#fff}
+  .navitem.on{background:rgba(255,255,255,.06);color:#fff;border-left-color:var(--amber)}
+  .navitem .pg{font-family:var(--mono);font-size:10px;width:20px;color:#8f8a7c}
+  .navitem.on .pg{color:var(--amber-lo)}
+  .navitem .dot{width:6px;height:6px;border-radius:50%;margin-left:auto;background:transparent}
+  .navitem .dot.done{background:var(--sage)} .navitem .dot.partial{background:var(--amber)}
+
+  .main{overflow-x:hidden}
+  .topbar{display:flex;align-items:center;gap:14px;padding:14px 30px;border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:20}
+  .topbar .proj{font-weight:600;font-size:14px}
+  .topbar .proj small{display:block;font-weight:400;color:var(--muted);font-size:11px;font-family:var(--mono)}
+  .topbar .sp{flex:1}
+  .btn{font-family:var(--sans);font-size:12.5px;font-weight:600;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 13px;border-radius:7px;cursor:pointer;transition:.12s}
+  .btn:hover{border-color:var(--steel-lo);background:#fff}
+  .btn.pri{background:var(--steel);color:#fff;border-color:var(--steel)} .btn.pri:hover{background:#223c5c}
+  .btn.gho{background:transparent;border-color:transparent;color:var(--muted)} .btn.gho:hover{color:var(--clay);background:rgba(168,70,58,.06)}
+  .btn.sm{padding:4px 9px;font-size:11.5px;border-radius:6px}
+  .btn.danger:hover{border-color:var(--clay);color:var(--clay)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  .view{padding:26px 30px 80px;max-width:1200px}
+  .view h2{font-size:22px;margin:0 0 3px;letter-spacing:-.01em}
+  .view .lead{color:var(--muted);margin:0 0 22px;font-size:13.5px;max-width:660px}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);font-weight:500}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .card h3{margin:0 0 3px;font-size:15px}
+  .card .sub{color:var(--muted);font-size:12px;margin:0 0 16px}
+  .kaflag{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:20px;border:1px solid var(--line);color:var(--muted);margin-left:8px;vertical-align:middle}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  label.fld{display:block;margin-bottom:12px}
+  label.fld > span{display:block;font-size:11.5px;font-weight:600;margin-bottom:5px}
+  label.fld > span em{color:var(--muted);font-weight:400;font-style:normal}
+  input,select,textarea{width:100%;font-family:var(--sans);font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--steel-lo);outline-offset:-1px}
+  textarea{resize:vertical;min-height:60px}
+  input.n{font-family:var(--mono)}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:8px 9px;border-bottom:1.5px solid var(--line)}
+  td{padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:middle}
+  td input,td select{padding:5px 7px;font-size:12px}
+  tr.tot td{font-weight:700;border-top:1.5px solid var(--ink);background:rgba(43,74,111,.04)}
+  .num{font-family:var(--mono);text-align:right}
+
+  .pill{display:inline-block;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500}
+  .pill.g{background:rgba(74,122,92,.14);color:var(--sage)} .pill.a{background:rgba(192,125,42,.15);color:var(--amber)}
+  .pill.r{background:rgba(168,70,58,.13);color:var(--clay)} .pill.n{background:rgba(43,74,111,.1);color:var(--steel)}
+  .pill.p{background:rgba(107,74,122,.13);color:var(--plum)}
+
+  .empty{text-align:center;padding:34px;color:var(--muted);border:1.5px dashed var(--line);border-radius:10px;font-size:13px}
+
+  .steps{display:flex;margin:0 0 22px;flex-wrap:wrap}
+  .step{flex:1;min-width:96px;text-align:center;padding:9px 4px;border-bottom:3px solid var(--line);cursor:pointer}
+  .step .n{font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .step .t{font-size:11.5px;font-weight:600;color:var(--muted);margin-top:2px}
+  .step.on{border-bottom-color:var(--steel)} .step.on .t{color:var(--ink)}
+  .step.ok{border-bottom-color:var(--sage)} .step.ok .t{color:var(--sage)}
+
+  .tree{font-family:var(--mono);font-size:12.5px}
+  .tnode{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px}
+  .tnode:hover{background:rgba(43,74,111,.05)}
+  .tnode .code{color:var(--steel);font-weight:500;min-width:60px}
+  .tnode .nm{flex:1}
+  .tnode.l2{margin-left:24px} .tnode.l3{margin-left:48px} .tnode.l4{margin-left:72px;color:var(--muted)}
+  .tnode.l4 .code{color:var(--plum)}
+
+  .gantt{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .gantt table{font-size:11.5px}
+  .gantt .bar{height:15px;border-radius:4px;background:var(--steel-lo);position:relative}
+  .gantt .bar.crit{background:var(--clay)}
+  .gantt .prog{position:absolute;left:0;top:0;bottom:0;background:rgba(0,0,0,.28);border-radius:4px 0 0 4px}
+  .gantt td.g{padding:4px 2px;border-left:1px dotted #ece7db} .gantt th.g{text-align:center;font-size:9px;padding:5px 2px}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px 16px}
+  .kpi .lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .kpi .val{font-size:26px;font-weight:700;font-family:var(--mono);margin:4px 0 1px;letter-spacing:-.02em}
+  .kpi .foot{font-size:11px;color:var(--muted)}
+  .kpi .val.pos{color:var(--sage)} .kpi .val.neg{color:var(--clay)} .kpi .val.warn{color:var(--amber)}
+
+  .bar-h{height:8px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:6px}
+  .bar-h > i{display:block;height:100%;background:var(--steel)}
+
+  .hint{background:rgba(43,74,111,.06);border-left:3px solid var(--steel-lo);padding:11px 14px;border-radius:0 8px 8px 0;font-size:12.5px;color:#3a4a5e;margin-bottom:16px}
+  .hint b{color:var(--steel)}
+
+  .rowadd{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .rowadd input,.rowadd select{flex:1;min-width:120px}
+
+  .veil{position:fixed;inset:0;background:rgba(20,27,38,.55);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+  .modal{background:var(--paper);border-radius:16px;max-width:560px;width:100%;padding:30px;box-shadow:0 30px 80px -20px rgba(0,0,0,.5);max-height:90vh;overflow-y:auto}
+  .modal h2{margin:0 0 4px}
+  .tpl{display:flex;gap:12px;padding:13px;border:1px solid var(--line);border-radius:10px;cursor:pointer;margin-bottom:10px;background:var(--panel);transition:.12s}
+  .tpl:hover{border-color:var(--steel);background:#fff}
+  .tpl .ic{font-size:22px}
+  .tpl b{display:block;font-size:13.5px} .tpl span{font-size:11.5px;color:var(--muted)}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:9px;font-size:13px;z-index:200;box-shadow:var(--shadow);opacity:0;transition:.25s}
+  .toast.show{opacity:1;bottom:34px}
+  .del{color:var(--clay);cursor:pointer;font-weight:700;padding:0 4px}.del:hover{opacity:.6}
+  .flex{display:flex;align-items:center;gap:10px}.between{justify-content:space-between}
+  .mono-sm{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  details.act{border:1px solid var(--line);border-radius:9px;margin-bottom:8px;background:#fff}
+  details.act summary{padding:9px 12px;cursor:pointer;font-weight:600;font-size:13px;list-style:none;display:flex;align-items:center;gap:8px}
+  details.act summary::-webkit-details-marker{display:none}
+  details.act[open] summary{border-bottom:1px solid var(--line)}
+  .act-body{padding:12px}
+  .depsrow{display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+  .depsrow select,.depsrow input{min-width:0}
+  .chk{width:auto}
+  .act-legend{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:auto}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+<script>
+/* =====================================================================
+   PM LAB — 백엔드 엔진 계층 (JS) · 확장판
+   4단계 WBS · 의존유형(FS/SS/FF/SF)+lag · 자원-기간 · EV 기법 · EAC · 조치
+   ===================================================================== */
+const DB={ KEY:'pmlab.project.v2',
+  load(){try{return JSON.parse(localStorage.getItem(this.KEY))}catch(e){return null}},
+  save(s){localStorage.setItem(this.KEY,JSON.stringify(s))}, clear(){localStorage.removeItem(this.KEY)} };
+
+/* ---------- 스키마 ----------
+ WBS 계층: deliverables(L2) → components(L3) → workPackages(L4) → activities
+ activity.deps: [{predId, type:'FS'|'SS'|'FF'|'SF', lag}]
+ activity.work(공수, 인-일) / resources(투입 자원 수) → duration = ceil(work/resources)
+   durMode:'derive'(자원기반) | 'fixed'(기간 직접)
+ evMethod: 'percent'|'milestone'|'0/100'|'50/50'|'LOE'
+ milestones: [{id,name,weight,done}]  (마일스톤법에서 사용)
+--------------------------------------------------------------------- */
+function blankProject(m){return{
+  meta:{name:m.name,sponsor:m.sponsor||'',goal:m.goal||'',constraints:m.constraints||'',assumptions:m.assumptions||'',startDate:m.startDate||'',created:Date.now()},
+  charterApproved:false, stakeholders:[], requirements:[],
+  deliverables:[], components:[], workPackages:[], activities:[],
+  risks:[], quality:[], comms:[], changeLog:[], lessons:[],
+  snapshots:[], // 상태일별 성과 기록 {id,ts,day,BAC,PV,EV,AC,SPI,CPI,SV,CV,EAC,VAC,rows:[{name,PV,EV,AC,SPI,CPI,EAC}]}
+  actions:[], // 감시통제에서 선택한 조치 {id,ts,issue,action,note}
+  closure:{deliverablesAccepted:false,docsArchived:false,resourcesReleased:false}
+};}
+const uid=()=>Math.random().toString(36).slice(2,9);
+const won=n=>'₩'+Math.round(n||0).toLocaleString('ko-KR');
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+/* SPI/CPI 표시 규칙:
+   PV=0이고 EV=0 → 계획상 아직 시작 전, 일정 정상으로 보아 1.00
+   PV=0이고 EV>0 → 계획엔 없는데 성과 발생, 비율 정의 불가 → —
+   AC=0이고 EV=0 → 원가 미발생, 1.00 / AC=0이고 EV>0 → — */
+function spiVal(pv,ev){ if(pv>0)return ev/pv; return ev>0?null:1; }
+function cpiVal(ac,ev){ if(ac>0)return ev/ac; return ev>0?null:1; }
+function idxColor(v){ if(v==null)return 'var(--muted)'; return v>=1?'var(--sage)':v>=.9?'var(--amber)':'var(--clay)'; }
+function idxTxt(v){ return v==null?'—':v.toFixed(2); }
+
+/* ---------- 자원-기간 상관 ---------- */
+function actDuration(a){
+  if(a.durMode==='fixed') return +a.duration||0;
+  const work=+a.work||0, res=Math.max(1,+a.resources||1);
+  return Math.ceil(work/res);
+}
+
+/* ---------- 일정 엔진: 의존유형(FS/SS/FF/SF)+lag 반영 전진/후진 계산 ---------- */
+function scheduleCPM(acts){
+  const map={}; acts.forEach(a=>{ map[a.id]={...a,dur:actDuration(a),es:0,ef:0,ls:0,lf:0,slack:0,critical:false}; });
+  const list=Object.values(map);
+  // 위상 정렬 (predId 기준)
+  const indeg={}; list.forEach(a=>indeg[a.id]=0);
+  list.forEach(a=>(a.deps||[]).forEach(d=>{ if(map[d.predId])indeg[a.id]++; }));
+  let q=list.filter(a=>indeg[a.id]===0).map(a=>a.id); const order=[],seen=new Set();
+  while(q.length){const id=q.shift(); if(seen.has(id))continue; seen.add(id); order.push(id);
+    list.forEach(a=>{ if((a.deps||[]).some(d=>d.predId===id)){ indeg[a.id]--; if(indeg[a.id]<=0)q.push(a.id);} }); }
+  list.forEach(a=>{ if(!order.includes(a.id))order.push(a.id); });
+  // 전진 계산 — 의존유형별 최소 시작/종료 제약
+  order.forEach(id=>{ const a=map[id]; let es=0;
+    (a.deps||[]).forEach(d=>{ const p=map[d.predId]; if(!p)return; const lag=+d.lag||0;
+      if(d.type==='FS') es=Math.max(es, p.ef+lag);
+      else if(d.type==='SS') es=Math.max(es, p.es+lag);
+      else if(d.type==='FF') es=Math.max(es, p.ef+lag - a.dur);
+      else if(d.type==='SF') es=Math.max(es, p.es+lag - a.dur);
+    });
+    a.es=Math.max(0,es); a.ef=a.es+a.dur;
+  });
+  const projEnd=list.length?Math.max(...list.map(a=>a.ef)):0;
+  // 후진 계산
+  [...order].reverse().forEach(id=>{ const a=map[id]; let lf=projEnd;
+    const succs=list.filter(s=>(s.deps||[]).some(d=>d.predId===id));
+    if(succs.length){ lf=Infinity;
+      succs.forEach(s=>{ const d=s.deps.find(x=>x.predId===id); const lag=+d.lag||0;
+        if(d.type==='FS') lf=Math.min(lf, s.ls-lag);
+        else if(d.type==='SS') lf=Math.min(lf, s.ls-lag + a.dur);
+        else if(d.type==='FF') lf=Math.min(lf, s.lf-lag);
+        else if(d.type==='SF') lf=Math.min(lf, s.lf-lag + a.dur);
+      });
+    }
+    a.lf=lf; a.ls=a.lf-a.dur; a.slack=a.ls-a.es; a.critical=a.slack<=0;
+  });
+  return {acts:list,projEnd,mapped:map};
+}
+
+/* ---------- EV 인식 엔진: 기법별 획득가치 계산 ----------
+ percent   : EV = BAC_act × 진척률(입력)
+ 0/100     : 완료 시에만 100%
+ 50/50     : 착수 시 50%, 완료 시 100%
+ milestone : 달성 마일스톤 가중치 합
+ LOE       : 시간 경과율만큼 자동 획득(항상 SV=0 성격)
+ 실행 화면에서 EV를 직접 입력(evOverride)하면 그 값을 우선 사용
+------------------------------------------------------------------- */
+function activityEV(a, cx, statusDay){
+  const bac=+a.cost||0;
+  if(a.evOverride!=null && a.evOverride!=='') return clamp(+a.evOverride,0,bac);
+  const started=(+a.progress||0)>0 || (cx && cx.es<statusDay);
+  switch(a.evMethod){
+    case '0/100': return (+a.progress>=100)?bac:0;
+    case '50/50': return (+a.progress>=100)?bac:(started?bac*0.5:0);
+    case 'milestone':{
+      const ms=a.milestones||[]; const tw=ms.reduce((s,m)=>s+(+m.weight||0),0)||1;
+      const dw=ms.filter(m=>m.done).reduce((s,m)=>s+(+m.weight||0),0);
+      return bac*(dw/tw);
+    }
+    case 'LOE':{
+      if(!cx) return bac*clamp((+a.progress||0)/100,0,1);
+      const dur=cx.dur||1; const el=clamp((statusDay-cx.es)/dur,0,1); return bac*el;
+    }
+    default: return bac*clamp((+a.progress||0)/100,0,1); // percent
+  }
+}
+
+/* ---------- EVM 종합 ---------- */
+function computeEVM(state, statusDay){
+  const {acts,projEnd}=scheduleCPM(state.activities);
+  const cxById={}; acts.forEach(a=>cxById[a.id]=a);
+  const BAC=state.activities.reduce((s,a)=>s+(+a.cost||0),0);
+  const day=statusDay==null?projEnd:statusDay;
+  let PV=0,EV=0,AC=0;
+  state.activities.forEach(a=>{ const cx=cxById[a.id]; const cost=+a.cost||0, dur=cx.dur||1;
+    let planPct = cx.ef<=day?1:(cx.es>=day?0:(day-cx.es)/dur); planPct=clamp(planPct,0,1);
+    PV+=cost*planPct;
+    EV+=activityEV(a,cx,day);
+    // AC: 실제원가 직접 입력값
+    AC+=(+a.actualCost||0);
+  });
+  const SV=EV-PV, CV=EV-AC;
+  const SPI=PV?EV/PV:0, CPI=AC?EV/AC:0;
+  const EAC_cpi = CPI?BAC/CPI:BAC;                 // 현재 효율 지속
+  const EAC_atypical = AC+(BAC-EV);                // 잔여는 계획대로
+  const EAC_tcpi = (CPI&&SPI)?AC+(BAC-EV)/(CPI*SPI):EAC_cpi; // 일정·원가 동시
+  const ETC=EAC_cpi-AC;
+  const VAC=BAC-EAC_cpi;
+  // TCPI: 예산 내 완료 가능(EAC≤BAC)이면 BAC 기준, 불가능(EAC>BAC)이면 EAC 기준으로 분모 전환
+  const overBudget = EAC_cpi>BAC;
+  const tcpiDenom = overBudget ? (EAC_cpi-AC) : (BAC-AC);
+  const TCPI = tcpiDenom>0 ? (BAC-EV)/tcpiDenom : 0;
+  const tcpiBasis = overBudget ? 'EAC' : 'BAC';
+  return {BAC,PV,EV,AC,SV,CV,SPI,CPI,EAC_cpi,EAC_atypical,EAC_tcpi,ETC,VAC,TCPI,tcpiBasis,overBudget,projEnd,day,acts,cxById};
+}
+
+/* ---------- 완성도 ---------- */
+function completeness(s){return{
+  initiate:s.charterApproved?'done':(s.meta.goal?'partial':''),
+  plan:(s.requirements.length&&s.workPackages.length&&s.activities.length)?'done':(s.requirements.length||s.deliverables.length)?'partial':'',
+  execute:s.activities.some(a=>+a.progress>0||+a.actualCost>0)?'partial':'',
+  monitor:s.actions.length?'partial':'',
+  close:(s.closure.deliverablesAccepted&&s.closure.docsArchived)?'done':(s.lessons.length?'partial':'')
+};}
+
+/* ===================== 상태 & 라우팅 ===================== */
+let S=DB.load(), route='initiate', planStep=0;
+const PLAN_STEPS=['이해관계자','요구사항','범위·WBS','활동정의','일정','원가·예산','부가영역'];
+function commit(){DB.save(S);render();}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1900);}
+function esc(s){return(s==null?'':String(s)).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+
+function render(){
+  const app=document.getElementById('app');
+  if(!S){app.innerHTML='';renderStart();return;}
+  const c=completeness(S);
+  app.innerHTML=`<div class="shell">
+    <aside class="rail">
+      <div class="brand"><h1>PM Lab</h1><div class="tag">PMBOK 6th · 실습 콘솔</div></div>
+      <div class="navsec">Process Groups</div>
+      ${nav('initiate','I','착수',c.initiate)}${nav('plan','P','계획',c.plan)}
+      ${nav('execute','E','실행',c.execute)}${nav('monitor','M','감시·통제',c.monitor)}${nav('close','C','종료',c.close)}
+      <div class="navsec">Reference</div>${nav('board','·','통합 대시보드','')}
+    </aside>
+    <main class="main">
+      <div class="topbar"><div class="proj">${esc(S.meta.name)}<small>${S.meta.startDate?'START '+S.meta.startDate:'PMBOK 6th 통합 실습'}</small></div>
+        <div class="sp"></div>
+        <button class="btn gho sm" onclick="exportJSON()">내보내기</button>
+        <button class="btn gho sm danger" onclick="resetAll()">새 프로젝트</button></div>
+      <div class="view" id="view"></div>
+    </main></div>`;
+  document.getElementById('view').innerHTML=ROUTES[route]();
+}
+function nav(id,pg,label,st){return`<div class="navitem ${route===id?'on':''}" onclick="go('${id}')"><span class="pg">${pg}</span><span>${label}</span><span class="dot ${st}"></span></div>`;}
+function go(r){route=r;if(r==='plan')planStep=Math.min(planStep,PLAN_STEPS.length-1);render();window.scrollTo(0,0);}
+
+/* ---------- 시작 ---------- */
+function renderStart(){document.getElementById('app').innerHTML=`<div class="veil"><div class="modal">
+  <div class="eyebrow">Project Management Lab</div><h2>실습 프로젝트 시작</h2>
+  <p class="lead">임의의 프로젝트를 골라 착수부터 종료까지 PMBOK 6th 프로세스를 직접 밟아봅니다.</p>
+  <div id="tpls">
+    ${stpl('🏫','교내 축제 개최','규모가 작아 전 과정을 빠르게 순회하기 좋습니다','festival')}
+    ${stpl('📱','모바일 앱 출시','요구사항·리스크·EV 기법 실습에 적합','app')}
+    ${stpl('✈️','무인기 시제 개발','조달·품질·리스크가 복합된 도전 과제','uav')}
+    ${stpl('✎','백지에서 시작','내가 직접 프로젝트를 정의합니다','blank')}</div>
+  <div id="blankForm" style="display:none;margin-top:6px">
+    <label class="fld"><span>프로젝트명</span><input id="f_name" placeholder="예) 스마트팜 관제 시스템 구축"></label>
+    <div class="grid2"><label class="fld"><span>스폰서 <em>(선택)</em></span><input id="f_sponsor"></label>
+    <label class="fld"><span>착수 예정일 <em>(선택)</em></span><input id="f_start" type="date"></label></div>
+    <label class="fld"><span>프로젝트 목표</span><textarea id="f_goal"></textarea></label>
+    <button class="btn pri" onclick="createBlank()">프로젝트 생성</button>
+    <button class="btn gho" onclick="document.getElementById('blankForm').style.display='none';document.getElementById('tpls').style.display='block'">뒤로</button>
+  </div></div></div>`;}
+function stpl(ic,t,d,k){return`<div class="tpl" onclick="pickTpl('${k}')"><div class="ic">${ic}</div><div><b>${t}</b><span>${d}</span></div></div>`;}
+function pickTpl(k){if(k==='blank'){document.getElementById('tpls').style.display='none';document.getElementById('blankForm').style.display='block';return;}
+  S=TEMPLATES[k]();DB.save(S);route='initiate';render();toast('프로젝트가 생성되었습니다');}
+function createBlank(){const n=val('f_name');if(!n){toast('프로젝트명을 입력하세요');return;}
+  S=blankProject({name:n,sponsor:val('f_sponsor'),goal:val('f_goal'),startDate:val('f_start')});DB.save(S);route='initiate';render();toast('생성되었습니다');}
+function resetAll(){if(confirm('현재 프로젝트를 지우고 새로 시작할까요?')){DB.clear();S=null;route='initiate';planStep=0;render();}}
+function exportJSON(){const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=(S.meta.name||'project')+'.pmlab.json';a.click();toast('JSON으로 내보냈습니다');}
+
+/* ===================== 착수 ===================== */
+const ROUTES={};
+ROUTES.initiate=()=>{const m=S.meta;return`
+  <div class="eyebrow">Initiating · 착수</div><h2>프로젝트 헌장</h2>
+  <p class="lead">헌장은 프로젝트를 공식 승인하고 PM에게 권한을 부여합니다. 목표·제약·가정이 이후 모든 계획의 기준선이 됩니다.</p>
+  <div class="card"><h3>헌장 정의 <span class="kaflag">통합관리</span></h3><p class="sub">4.1 Develop Project Charter</p>
+    <label class="fld"><span>프로젝트명</span><input value="${esc(m.name)}" onchange="setMeta('name',this.value)"></label>
+    <div class="grid2"><label class="fld"><span>스폰서</span><input value="${esc(m.sponsor)}" onchange="setMeta('sponsor',this.value)"></label>
+    <label class="fld"><span>착수 예정일</span><input type="date" value="${esc(m.startDate)}" onchange="setMeta('startDate',this.value)"></label></div>
+    <label class="fld"><span>목표 <em>— 측정 가능한 성공 기준</em></span><textarea onchange="setMeta('goal',this.value)">${esc(m.goal)}</textarea></label>
+    <div class="grid2"><label class="fld"><span>주요 제약</span><textarea onchange="setMeta('constraints',this.value)">${esc(m.constraints)}</textarea></label>
+    <label class="fld"><span>가정</span><textarea onchange="setMeta('assumptions',this.value)">${esc(m.assumptions)}</textarea></label></div>
+    <div class="flex between" style="margin-top:6px">
+      <label class="flex" style="gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" class="chk" ${S.charterApproved?'checked':''} onchange="S.charterApproved=this.checked;commit()"> 헌장 공식 승인 완료</label>
+      <button class="btn pri" onclick="go('plan')">계획 수립으로 →</button></div></div>`;};
+function setMeta(k,v){S.meta[k]=v;DB.save(S);if(k==='name')render();}
+
+/* ===================== 계획 ===================== */
+ROUTES.plan=()=>{
+  const steps=PLAN_STEPS.map((t,i)=>`<div class="step ${planStep===i?'on':''} ${planStepDone(i)?'ok':''}" onclick="planStep=${i};render()"><div class="n">0${i+1}</div><div class="t">${t}</div></div>`).join('');
+  return`<div class="eyebrow">Planning · 계획 수립</div><h2>통합 계획 워크플로우</h2>
+  <p class="lead">요구사항에서 예산 베이스라인까지 순서대로 밟습니다. 각 단계 산출물이 다음 단계의 입력이 됩니다.</p>
+  <div class="steps">${steps}</div>${PLAN_VIEWS[planStep]()}
+  <div class="flex between" style="margin-top:18px">
+    <button class="btn" onclick="planStep=Math.max(0,planStep-1);render()" ${planStep===0?'disabled':''}>← 이전</button>
+    <button class="btn pri" onclick="${planStep<PLAN_STEPS.length-1?'planStep++;render()':"go('execute')"}">${planStep<PLAN_STEPS.length-1?'다음 →':'실행 단계로 →'}</button></div>`;
+};
+function planStepDone(i){return[S.stakeholders.length>0,S.requirements.length>0,S.workPackages.length>0,S.activities.length>0,
+  S.activities.length>0&&S.activities.every(a=>actDuration(a)>0),S.activities.some(a=>+a.cost>0),true][i];}
+const PLAN_VIEWS=[];
+
+/* 01 이해관계자 */
+PLAN_VIEWS[0]=()=>`<div class="hint"><b>왜 먼저?</b> 이해관계자를 먼저 식별해야 이들의 기대가 요구사항으로 흘러들어옵니다.</div>
+  <div class="card"><h3>이해관계자 등록부 <span class="kaflag">이해관계자관리</span></h3><p class="sub">13.1 Identify Stakeholders</p>
+  <table><thead><tr><th>이름/그룹</th><th>역할</th><th>관심도</th><th>권한</th><th>관리 전략</th><th></th></tr></thead><tbody>
+  ${S.stakeholders.map(s=>`<tr><td><input value="${esc(s.name)}" onchange="upd('stakeholders','${s.id}','name',this.value)"></td>
+    <td><input value="${esc(s.role)}" onchange="upd('stakeholders','${s.id}','role',this.value)"></td>
+    <td>${sel(['높음','중간','낮음'],s.interest,`upd('stakeholders','${s.id}','interest',this.value)`)}</td>
+    <td>${sel(['높음','중간','낮음'],s.power,`upd('stakeholders','${s.id}','power',this.value)`)}</td>
+    <td>${sel(['긴밀 관리','만족 유지','정보 제공','모니터링'],s.strategy,`upd('stakeholders','${s.id}','strategy',this.value)`)}</td>
+    <td><span class="del" onclick="del('stakeholders','${s.id}')">×</span></td></tr>`).join('')||emptyRow(6)}</tbody></table>
+  <div class="rowadd"><input id="sk_name" placeholder="이름/그룹"><input id="sk_role" placeholder="역할"><button class="btn sm pri" onclick="addStake()">추가</button></div></div>`;
+function addStake(){const n=val('sk_name');if(!n)return;S.stakeholders.push({id:uid(),name:n,role:val('sk_role'),interest:'중간',power:'중간',strategy:'정보 제공'});commit();}
+
+/* 02 요구사항 */
+PLAN_VIEWS[1]=()=>`<div class="hint"><b>범위의 씨앗.</b> 수집된 요구사항이 곧 인도물과 WBS의 근거가 됩니다.</div>
+  <div class="card"><h3>요구사항 수집 <span class="kaflag">범위관리</span></h3><p class="sub">5.2 Collect Requirements</p>
+  <table><thead><tr><th style="width:44%">요구사항</th><th>우선순위</th><th>출처</th><th></th></tr></thead><tbody>
+  ${S.requirements.map(r=>`<tr><td><input value="${esc(r.text)}" onchange="upd('requirements','${r.id}','text',this.value)"></td>
+    <td>${sel(['필수(Must)','권장(Should)','선택(Could)'],r.priority,`upd('requirements','${r.id}','priority',this.value)`)}</td>
+    <td>${sel(['—',...S.stakeholders.map(s=>s.name)],r.source,`upd('requirements','${r.id}','source',this.value)`)}</td>
+    <td><span class="del" onclick="del('requirements','${r.id}')">×</span></td></tr>`).join('')||emptyRow(4)}</tbody></table>
+  <div class="rowadd"><input id="rq_text" placeholder="예) 결제는 카드·간편결제 모두 지원"><button class="btn sm pri" onclick="addReq()">추가</button></div></div>`;
+function addReq(){const t=val('rq_text');if(!t)return;S.requirements.push({id:uid(),text:t,priority:'필수(Must)',source:'—'});commit();}
+
+/* 03 범위·WBS — 4단계 (인도물 L2 → 구성요소 L3 → 작업패키지 L4) */
+PLAN_VIEWS[2]=()=>{
+  const tree=S.deliverables.map(d=>{
+    const comps=S.components.filter(c=>c.deliverableId===d.id);
+    return `<div class="tnode l2"><span class="code">${d.code}</span><span class="nm">${esc(d.name)}</span><span class="pill n">인도물</span><span class="del" onclick="del('deliverables','${d.id}')">×</span></div>`
+    + comps.map(c=>{
+        const wps=S.workPackages.filter(w=>w.componentId===c.id);
+        return `<div class="tnode l3"><span class="code">${c.code}</span><span class="nm">${esc(c.name)}</span><span class="pill p">구성요소</span><span class="del" onclick="del('components','${c.id}')">×</span></div>`
+        + wps.map(w=>`<div class="tnode l4"><span class="code">${w.code}</span><span class="nm">${esc(w.name)}</span><span class="del" onclick="del('workPackages','${w.id}')">×</span></div>`).join('');
+      }).join('');
+  }).join('');
+  return`<div class="hint"><b>범위 → 4단계 분해.</b> 인도물(L2)을 <b>구성요소(L3)</b>로 나누고, 각 구성요소를 <b>작업 패키지(L4)</b>로 분해합니다. 작업 패키지가 WBS의 최하위이자 활동 정의의 기준입니다.</div>
+  <div class="grid2">
+    <div class="card"><h3>계층 구성 <span class="kaflag">범위관리</span></h3><p class="sub">5.4 Create WBS</p>
+      <div class="rowadd"><input id="dl_name" placeholder="인도물명 (L2)"><button class="btn sm pri" onclick="addDeliv()">＋인도물</button></div>
+      <div style="margin-top:12px">${S.deliverables.map(d=>`
+        <div style="padding:8px 0;border-bottom:1px solid var(--line)">
+          <div class="flex between"><b class="mono-sm">${d.code}</b> <span style="flex:1">${esc(d.name)}</span></div>
+          <div class="rowadd" style="margin-top:6px"><input id="cp_${d.id}" placeholder="구성요소명 (L3)" style="font-size:12px"><button class="btn sm" onclick="addComp('${d.id}')">＋구성요소</button></div>
+          ${S.components.filter(c=>c.deliverableId===d.id).map(c=>`
+            <div class="rowadd" style="margin-top:6px;margin-left:14px"><span class="mono-sm" style="min-width:52px">${c.code}</span><input id="wp_${c.id}" placeholder="작업 패키지명 (L4)" style="font-size:12px"><button class="btn sm" onclick="addWP('${c.id}')">＋WP</button></div>`).join('')}
+        </div>`).join('')||'<div class="empty">인도물을 먼저 추가하세요</div>'}</div>
+    </div>
+    <div class="card"><h3>WBS 구조 <span class="kaflag">범위관리</span></h3><p class="sub">Work Breakdown Structure · 4 Levels</p>
+      <div class="tree"><div class="tnode"><span class="code">0</span><span class="nm"><b>${esc(S.meta.name)}</b></span></div>
+      ${tree||'<div class="empty">인도물·구성요소·작업 패키지를 추가하면 트리가 그려집니다</div>'}</div>
+      <div class="mono-sm" style="margin-top:12px">인도물 ${S.deliverables.length} · 구성요소 ${S.components.length} · 작업 패키지 ${S.workPackages.length}</div></div>
+  </div>`;
+};
+function addDeliv(){const n=val('dl_name');if(!n)return;S.deliverables.push({id:uid(),code:'1.'+(S.deliverables.length+1),name:n});commit();}
+function addComp(did){const n=val('cp_'+did);if(!n)return;const d=S.deliverables.find(x=>x.id===did);
+  const cnt=S.components.filter(c=>c.deliverableId===did).length+1;S.components.push({id:uid(),deliverableId:did,code:d.code+'.'+cnt,name:n});commit();}
+function addWP(cid){const n=val('wp_'+cid);if(!n)return;const c=S.components.find(x=>x.id===cid);
+  const cnt=S.workPackages.filter(w=>w.componentId===cid).length+1;S.workPackages.push({id:uid(),componentId:cid,code:c.code+'.'+cnt,name:n});commit();}
+
+/* 04 활동 정의 — 소속 WP + 자원·공수 or 고정기간 + EV 기법 */
+PLAN_VIEWS[3]=()=>{
+  if(S.workPackages.length===0) return `<div class="hint"><b>범위가 먼저.</b> 활동은 작업 패키지를 분해해 만듭니다. 03단계에서 작업 패키지를 먼저 정의하세요.</div><div class="empty">범위·WBS에서 작업 패키지를 만드세요</div>`;
+  // WBS 계층(인도물→구성요소→작업패키지) 순서로 그룹핑하여, 각 작업 패키지 아래에 활동을 정의
+  const blocks=S.deliverables.map(d=>{
+    const comps=S.components.filter(c=>c.deliverableId===d.id);
+    const compBlocks=comps.map(c=>{
+      const wps=S.workPackages.filter(w=>w.componentId===c.id);
+      const wpBlocks=wps.map(w=>{
+        const acts=S.activities.filter(a=>a.wpId===w.id);
+        const rows=acts.map(a=>`<tr>
+          <td><input value="${esc(a.name)}" onchange="upd('activities','${a.id}','name',this.value)"></td>
+          <td style="width:150px">${sel(['percent','milestone','0/100','50/50','LOE'],a.evMethod,`setEVMethod('${a.id}',this.value)`)}</td>
+          <td style="width:36px"><span class="del" onclick="del('activities','${a.id}')">×</span></td></tr>`).join('')
+          || `<tr><td colspan="3" class="mono-sm" style="padding:8px 9px;color:var(--muted)">활동 없음 — 아래에서 추가</td></tr>`;
+        return `<div style="border:1px solid var(--line);border-radius:9px;margin-bottom:10px;background:#fff">
+          <div class="flex" style="gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);background:rgba(107,74,122,.05)">
+            <b class="mono-sm" style="color:var(--plum)">${w.code}</b><b style="font-size:13px">${esc(w.name)}</b>
+            <span class="pill n" style="margin-left:auto">활동 ${acts.length}</span></div>
+          <div style="padding:8px 12px">
+            <table><thead><tr><th>활동명</th><th>EV 인식 기법</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+            <div class="rowadd"><input id="ac_${w.id}" placeholder="예) 화면 설계"><button class="btn sm pri" onclick="addActTo('${w.id}')">＋활동 추가</button></div>
+          </div></div>`;
+      }).join('');
+      return `<div style="margin-bottom:6px"><div class="mono-sm" style="padding:4px 0"><b style="color:var(--plum)">${c.code}</b> ${esc(c.name)} <span class="pill p">구성요소</span></div>${wpBlocks}</div>`;
+    }).join('');
+    return `<div class="card"><h3><span class="mono-sm">${d.code}</span> ${esc(d.name)} <span class="kaflag">범위관리 → 일정관리</span></h3>
+      <p class="sub">이 인도물의 작업 패키지별로 활동을 정의하고 EV 기법을 지정합니다</p>${compBlocks||'<div class="empty">구성요소·작업 패키지를 먼저 추가하세요</div>'}</div>`;
+  }).join('');
+  return `<div class="hint"><b>범위 기준 활동 정의.</b> 각 <b>작업 패키지(WBS 최하위)</b>를 실행 <b>활동</b>으로 분해합니다. 활동은 소속 작업 패키지 안에서 만들어지고, 활동마다 <b>EV 인식 기법</b>을 지정합니다. 자원·기간·의존관계는 다음 단계에서 연결합니다.</div>
+    ${blocks}
+    <div class="mono-sm" style="margin:4px 2px 0">EV 기법: <b>percent</b> 진척률 비례 · <b>milestone</b> 마일스톤 가중 · <b>0/100</b> 완료시 인식 · <b>50/50</b> 착수50·완료100 · <b>LOE</b> 시간경과 자동</div>`;
+};
+function addActTo(wpId){const n=val('ac_'+wpId);if(!n)return;
+  S.activities.push({id:uid(),wpId:wpId,name:n,durMode:'derive',work:5,resources:1,duration:5,deps:[],cost:0,evMethod:'percent',milestones:[],progress:0,evOverride:'',actualCost:0});commit();}
+/* 마일스톤법: 체계공학 기술검토 게이트(SRR·SFR·PDR·CDR·TRR·FCA), 각 10~20%로 EV 인식 */
+function defaultMilestones(){return[
+  {id:uid(),name:'SRR',weight:15,done:false},{id:uid(),name:'SFR',weight:15,done:false},
+  {id:uid(),name:'PDR',weight:20,done:false},{id:uid(),name:'CDR',weight:20,done:false},
+  {id:uid(),name:'TRR',weight:15,done:false},{id:uid(),name:'FCA',weight:15,done:false}];}
+function setEVMethod(id,v){const a=S.activities.find(x=>x.id===id);a.evMethod=v;if(v==='milestone'&&(!a.milestones||!a.milestones.length))a.milestones=defaultMilestones();commit();}
+
+/* 05 일정 — 자원·공수·기간 + 의존유형(FS/SS/FF/SF)+lag */
+PLAN_VIEWS[4]=()=>{
+  if(!S.activities.length)return`<div class="empty">활동을 먼저 정의하세요 (04단계)</div>`;
+  const {acts,projEnd}=scheduleCPM(S.activities); const byId={};acts.forEach(a=>byId[a.id]=a);
+  const cards=S.activities.map(a=>{const cx=byId[a.id]; const others=S.activities.filter(x=>x.id!==a.id);
+    const depsHTML=(a.deps||[]).map((d,idx)=>{
+      return`<div class="depsrow">
+        ${sel2v('선행활동', others.map(o=>({v:o.id,t:o.name})), d.predId, `setDep('${a.id}',${idx},'predId',this.value)`)}
+        ${sel(['FS','SS','FF','SF'],d.type,`setDep('${a.id}',${idx},'type',this.value)`)}
+        <input class="n" type="number" style="width:70px" value="${d.lag||0}" title="lag(일)" onchange="setDep('${a.id}',${idx},'lag',+this.value)">
+        <span class="del" onclick="rmDep('${a.id}',${idx})">×</span></div>`;
+    }).join('')||'<div class="mono-sm">선행활동 없음 (시작 활동)</div>';
+    return`<details class="act"><summary>${esc(a.name)} ${cx.critical?'<span class="pill r">CP</span>':''}
+      <span class="act-legend">기간 ${cx.dur}일 · ES ${cx.es} / EF ${cx.ef} · 여유 ${cx.slack}</span></summary>
+      <div class="act-body"><div class="grid2">
+        <div>
+          <label class="fld"><span>기간 산정 방식</span>${sel(['자원기반(공수÷자원)','기간 직접입력'],a.durMode==='fixed'?'기간 직접입력':'자원기반(공수÷자원)',`setDurMode('${a.id}',this.value)`)}</label>
+          ${a.durMode==='fixed'
+            ? `<label class="fld"><span>기간(일)</span><input class="n" type="number" min="0" value="${a.duration}" onchange="upd('activities','${a.id}','duration',+this.value)"></label>`
+            : `<div class="grid2">
+                 <label class="fld"><span>공수(인-일)</span><input class="n" type="number" min="0" value="${a.work}" onchange="upd('activities','${a.id}','work',+this.value)"></label>
+                 <label class="fld"><span>투입 자원(명)</span><input class="n" type="number" min="1" value="${a.resources}" onchange="upd('activities','${a.id}','resources',+this.value)"></label>
+               </div><div class="mono-sm">→ 산출 기간 = ⌈${a.work}÷${a.resources}⌉ = <b>${cx.dur}일</b> (자원↑ 기간↓)</div>`}
+        </div>
+        <div><label class="fld"><span>선후행 관계 <em>— 유형 · lag</em></span></label>${depsHTML}
+          <button class="btn sm" style="margin-top:6px" onclick="addDep('${a.id}')">＋ 선행관계 추가</button></div>
+      </div></div></details>`;
+  }).join('');
+  return`<div class="hint"><b>일정 개발.</b> 자원기반 활동은 <b>기간=⌈공수÷자원⌉</b>으로 산출되어 자원을 늘리면 기간이 줄어듭니다. 선후행은 <b>FS/SS/FF/SF</b>와 <b>lag</b>를 지정할 수 있고, 엔진이 전진·후진 계산으로 여유와 주공정(CP)을 구합니다.</div>
+  <div class="card"><h3>활동 상세 <span class="kaflag">일정관리</span></h3><p class="sub">6.3 Sequence · 6.4 Estimate Durations · 6.5 Develop Schedule</p>${cards}
+    <div class="mono-sm" style="margin-top:12px">총 기간 <b>${projEnd}일</b> · 주공정 활동 <b>${acts.filter(a=>a.critical).length}개</b> · FS 종료-시작 / SS 시작-시작 / FF 종료-종료 / SF 시작-종료</div></div>
+  <div class="card"><h3>간트 차트</h3><p class="sub">붉은 막대 = 주공정</p>${ganttHTML(acts,projEnd)}</div>`;
+};
+function setDurMode(id,v){const a=S.activities.find(x=>x.id===id);a.durMode=(v==='기간 직접입력')?'fixed':'derive';if(a.durMode==='fixed'&&!a.duration)a.duration=actDuration(a);commit();}
+function addDep(id){const a=S.activities.find(x=>x.id===id);const other=S.activities.find(x=>x.id!==id);a.deps=a.deps||[];a.deps.push({predId:other?other.id:'',type:'FS',lag:0});commit();}
+function rmDep(id,idx){const a=S.activities.find(x=>x.id===id);a.deps.splice(idx,1);commit();}
+function setDep(id,idx,field,v){const a=S.activities.find(x=>x.id===id);a.deps[idx][field]=v;commit();}
+
+/* 06 원가·예산 */
+PLAN_VIEWS[5]=()=>{
+  const total=S.activities.reduce((s,a)=>s+(+a.cost||0),0);
+  const contingency=Math.round(S.risks.reduce((s,r)=>s+(pv(r.prob)*iv(r.impact)*total*0.02),0));
+  return`<div class="hint"><b>원가 → 예산.</b> 활동별 원가 합이 <b>원가 베이스라인</b>이 되고, 리스크 노출도 기반 예비비를 더해 예산(BAC)을 책정합니다.</div>
+  <div class="card"><h3>원가 산정 <span class="kaflag">원가관리</span></h3><p class="sub">7.2 Estimate Costs · 7.3 Determine Budget</p>
+  <table><thead><tr><th style="width:44%">활동</th><th>WP</th><th>기간</th><th style="width:150px">원가 산정</th></tr></thead><tbody>
+  ${S.activities.map(a=>{const wp=S.workPackages.find(w=>w.id===a.wpId);
+    return`<tr><td>${esc(a.name)}</td><td class="mono-sm">${wp?wp.code:'—'}</td><td class="num">${actDuration(a)}일</td>
+    <td><input class="n" type="number" min="0" step="10000" value="${a.cost}" onchange="upd('activities','${a.id}','cost',+this.value)"></td></tr>`;}).join('')||emptyRow(4)}
+    <tr class="tot"><td>원가 베이스라인 (직접비 합)</td><td></td><td></td><td class="num">${won(total)}</td></tr></tbody></table>
+  <div class="grid3" style="margin-top:16px">
+    <div class="kpi"><div class="lab">직접 원가</div><div class="val" style="font-size:19px">${won(total)}</div></div>
+    <div class="kpi"><div class="lab">리스크 예비비(추정)</div><div class="val warn" style="font-size:19px">${won(contingency)}</div><div class="foot">노출도 × 2%</div></div>
+    <div class="kpi"><div class="lab">예산(BAC)</div><div class="val" style="font-size:19px;color:var(--steel)">${won(total+contingency)}</div></div></div></div>`;
+};
+function pv(p){return{'상':0.7,'중':0.4,'하':0.1}[p]||0.4;}
+function iv(i){return{'상':0.7,'중':0.4,'하':0.1}[i]||0.4;}
+
+/* 07 부가 영역 */
+PLAN_VIEWS[6]=()=>`<div class="hint"><b>계획을 완성하는 통합 요소.</b> 품질·리스크·의사소통 계획을 더하면 계획이 견고해집니다.</div>
+  <div class="grid2">
+    <div class="card"><h3>리스크 등록부 <span class="kaflag">리스크관리</span></h3><p class="sub">11.2 · 11.3</p>
+      <table><thead><tr><th>리스크</th><th>확률</th><th>영향</th><th>대응</th><th></th></tr></thead><tbody>
+      ${S.risks.map(r=>`<tr><td><input value="${esc(r.text)}" onchange="upd('risks','${r.id}','text',this.value)"></td>
+        <td>${sel(['상','중','하'],r.prob,`upd('risks','${r.id}','prob',this.value)`)}</td>
+        <td>${sel(['상','중','하'],r.impact,`upd('risks','${r.id}','impact',this.value)`)}</td>
+        <td>${sel(['회피','전가','완화','수용'],r.response,`upd('risks','${r.id}','response',this.value)`)}</td>
+        <td><span class="del" onclick="del('risks','${r.id}')">×</span></td></tr>`).join('')||emptyRow(5)}</tbody></table>
+      <div class="rowadd"><input id="rk_text" placeholder="예) 핵심 인력 이탈"><button class="btn sm pri" onclick="addRisk()">추가</button></div></div>
+    <div class="card"><h3>품질 지표 <span class="kaflag">품질관리</span></h3><p class="sub">8.1 Plan Quality</p>
+      <table><thead><tr><th>지표</th><th>목표</th><th>측정</th><th></th></tr></thead><tbody>
+      ${S.quality.map(q=>`<tr><td><input value="${esc(q.metric)}" onchange="upd('quality','${q.id}','metric',this.value)"></td>
+        <td><input value="${esc(q.target)}" onchange="upd('quality','${q.id}','target',this.value)"></td>
+        <td><input value="${esc(q.method)}" onchange="upd('quality','${q.id}','method',this.value)"></td>
+        <td><span class="del" onclick="del('quality','${q.id}')">×</span></td></tr>`).join('')||emptyRow(4)}</tbody></table>
+      <div class="rowadd"><input id="ql_metric" placeholder="예) 결함 밀도"><button class="btn sm pri" onclick="addQual()">추가</button></div></div>
+  </div>
+  <div class="card"><h3>의사소통 계획 <span class="kaflag">의사소통관리</span></h3><p class="sub">10.1 Plan Communications</p>
+    <table><thead><tr><th>정보</th><th>대상</th><th>주기</th><th>채널</th><th></th></tr></thead><tbody>
+    ${S.comms.map(c=>`<tr><td><input value="${esc(c.info)}" onchange="upd('comms','${c.id}','info',this.value)"></td>
+      <td>${sel(['—',...S.stakeholders.map(s=>s.name)],c.audience,`upd('comms','${c.id}','audience',this.value)`)}</td>
+      <td>${sel(['수시','일간','주간','격주','월간'],c.freq,`upd('comms','${c.id}','freq',this.value)`)}</td>
+      <td>${sel(['회의','이메일','대시보드','보고서'],c.channel,`upd('comms','${c.id}','channel',this.value)`)}</td>
+      <td><span class="del" onclick="del('comms','${c.id}')">×</span></td></tr>`).join('')||emptyRow(5)}</tbody></table>
+    <div class="rowadd"><input id="cm_info" placeholder="예) 주간 진척 현황"><button class="btn sm pri" onclick="addComm()">추가</button></div></div>`;
+function addRisk(){const t=val('rk_text');if(!t)return;S.risks.push({id:uid(),text:t,prob:'중',impact:'중',response:'완화'});commit();}
+function addQual(){const m=val('ql_metric');if(!m)return;S.quality.push({id:uid(),metric:m,target:'',method:''});commit();}
+function addComm(){const i=val('cm_info');if(!i)return;S.comms.push({id:uid(),info:i,audience:'—',freq:'주간',channel:'회의'});commit();}
+
+/* ===================== 실행 — EV/AC 직접 입력 ===================== */
+ROUTES.execute=()=>{
+  if(!S.activities.length)return notReady('실행할 활동이 없습니다. 계획 단계에서 활동을 먼저 정의하세요.');
+  const {acts,projEnd}=scheduleCPM(S.activities); const byId={};acts.forEach(a=>byId[a.id]=a);
+  const day=S._statusDay==null?projEnd:S._statusDay;
+  return`<div class="eyebrow">Executing · 실행</div><h2>작업 실행 및 성과 기록</h2>
+  <p class="lead">활동별 EV 인식 기법에 따라 진척을 기록하고, 상태일 기준의 <b>EV(획득가치)</b>와 <b>AC(실제원가)</b>를 입력합니다. 이 데이터가 감시·통제 분석의 입력이 됩니다.</p>
+  <div class="card" style="padding:14px 20px"><div class="flex" style="gap:14px"><b style="font-size:12px">상태 기준일</b>
+    <input type="range" min="0" max="${projEnd}" value="${day}" style="flex:1" oninput="S._statusDay=+this.value;render()">
+    <b class="mono-sm">Day ${day} / ${projEnd}</b></div></div>
+  <div class="card"><h3>활동별 성과 입력 <span class="kaflag">통합관리</span></h3><p class="sub">4.3 Direct and Manage Project Work · 활동별 SPI·CPI·EAC 즉시 산출</p>
+  <div style="overflow-x:auto"><table><thead><tr><th style="width:18%">활동</th><th>EV 기법</th><th>진척/마일스톤</th><th>PV</th><th>EV 획득가치</th><th>AC 실제원가</th><th>SPI</th><th>CPI</th><th>EAC</th></tr></thead><tbody>
+  ${S.activities.map(a=>{const cx=byId[a.id]; const autoEV=activityEV({...a,evOverride:''},cx,day); const shownEV=(a.evOverride!=null&&a.evOverride!=='')?+a.evOverride:autoEV;
+    const cost=+a.cost||0, dur=cx.dur||1;
+    let planPct=cx.ef<=day?1:(cx.es>=day?0:(day-cx.es)/dur); planPct=clamp(planPct,0,1);
+    const pv=cost*planPct, ac=+a.actualCost||0;
+    const spi=spiVal(pv,shownEV), cpi=cpiVal(ac,shownEV);
+    const eac=(cpi&&cpi>0)?cost/cpi:cost;
+    const spiTxt=idxTxt(spi), cpiTxt=idxTxt(cpi);
+    const spiC=idxColor(spi), cpiC=idxColor(cpi);
+    let progCell;
+    if(a.evMethod==='milestone'){
+      progCell=`<div>${(a.milestones||[]).map((m,i)=>`<label class="flex" style="gap:5px;font-size:11px"><input type="checkbox" class="chk" ${m.done?'checked':''} onchange="toggleMs('${a.id}',${i},this.checked)"> ${esc(m.name)} <span class="mono-sm">${m.weight}%</span></label>`).join('')}</div>`;
+    }else if(a.evMethod==='0/100'||a.evMethod==='50/50'){
+      progCell=`<label class="flex" style="gap:6px;font-size:12px"><input type="checkbox" class="chk" ${+a.progress>=100?'checked':''} onchange="upd('activities','${a.id}','progress',this.checked?100:0)"> 완료</label>`;
+    }else if(a.evMethod==='LOE'){
+      progCell=`<span class="mono-sm">시간경과 자동 (${Math.round(clamp((day-cx.es)/(cx.dur||1),0,1)*100)}%)</span>`;
+    }else{
+      progCell=`<div class="flex" style="gap:8px"><input type="range" min="0" max="100" step="5" value="${+a.progress||0}" style="flex:1" oninput="upd('activities','${a.id}','progress',+this.value)"><b class="mono-sm" style="width:34px">${+a.progress||0}%</b></div>`;
+    }
+    return`<tr><td>${esc(a.name)} ${cx.critical?'<span class="pill r">CP</span>':''}</td>
+      <td><span class="pill n">${a.evMethod}</span></td>
+      <td style="min-width:120px;width:120px">${progCell}</td>
+      <td class="num mono-sm">${won(pv)}</td>
+      <td style="min-width:150px"><input class="n" type="number" min="0" step="1000000" placeholder="자동 ${Math.round(autoEV)}" value="${a.evOverride!==''&&a.evOverride!=null?a.evOverride:''}" onchange="upd('activities','${a.id}','evOverride',this.value)" title="비우면 기법 자동계산 사용 · 단위 백만원 스텝"><div class="mono-sm">EV ${won(shownEV)}</div></td>
+      <td style="min-width:150px"><input class="n" type="number" min="0" step="1000000" value="${a.actualCost||0}" onchange="upd('activities','${a.id}','actualCost',+this.value)" title="실제원가 · 단위 백만원 스텝"><div class="mono-sm">AC ${won(a.actualCost||0)}</div></td>
+      <td class="num" style="color:${spiC}">${spiTxt}</td>
+      <td class="num" style="color:${cpiC}">${cpiTxt}</td>
+      <td class="num mono-sm">${won(eac)}</td></tr>`;
+  }).join('')}</tbody></table></div>
+  <div class="mono-sm" style="margin-top:10px">활동별 SPI=EV/PV · CPI=EV/AC · EAC=원가/CPI. AC·PV가 0이면 지표는 —로 표시됩니다. EV·AC는 백만원 단위(1,000,000)로 증감하며, 정확한 값은 직접 입력할 수 있습니다. EV 칸을 비우면 기법 자동계산을 사용합니다.</div>
+  </div>
+  <div class="card" style="padding:16px 20px"><div class="flex between">
+    <div><h3 style="margin:0">상태일 성과 기록 <span class="kaflag">통합관리</span></h3>
+      <p class="sub" style="margin:2px 0 0">현재 Day ${day} 시점의 EVM 지표를 스냅샷으로 저장합니다. 감시·통제에서 시점별 추세를 확인할 수 있습니다.</p></div>
+    <button class="btn pri" onclick="recordSnapshot(${day})">＋ Day ${day} 기록</button></div>
+    ${S.snapshots.length?`<div class="mono-sm" style="margin-top:12px">기록된 상태일: ${S.snapshots.slice().sort((x,y)=>x.day-y.day).map(s=>`Day ${s.day}`).join(' · ')}</div>`:''}
+  </div>
+  <div class="card"><h3>변경 요청 로그 <span class="kaflag">통합관리</span></h3><p class="sub">4.6 Perform Integrated Change Control</p>
+    ${S.changeLog.map(ch=>`<div class="flex between" style="padding:8px 0;border-bottom:1px solid var(--line)"><span><span class="mono-sm">${new Date(ch.ts).toLocaleDateString('ko-KR')}</span> ${esc(ch.text)}</span><span class="pill ${ch.decision==='승인'?'g':ch.decision==='반려'?'r':'a'}">${ch.decision}</span></div>`).join('')||'<div class="empty">변경 요청이 없습니다</div>'}
+    <div class="rowadd"><input id="cl_text" placeholder="예) 결제 수단에 해외카드 추가">${sel2('cl_dec',[{v:'검토중',t:'검토중'},{v:'승인',t:'승인'},{v:'반려',t:'반려'}])}<button class="btn sm pri" onclick="addChange()">기록</button></div></div>`;
+};
+function toggleMs(id,i,v){const a=S.activities.find(x=>x.id===id);a.milestones[i].done=v;
+  const tw=a.milestones.reduce((s,m)=>s+(+m.weight||0),0)||1;const dw=a.milestones.filter(m=>m.done).reduce((s,m)=>s+(+m.weight||0),0);a.progress=Math.round(dw/tw*100);commit();}
+/* 상태일 스냅샷: 현재 Day 기준 EVM 전체 + 활동별 지표를 저장(동일 Day는 갱신) */
+function recordSnapshot(day){
+  const {acts}=scheduleCPM(S.activities); const cx={}; acts.forEach(a=>cx[a.id]=a);
+  const e=computeEVM(S,day);
+  const rows=S.activities.map(a=>{const c=cx[a.id]; const cost=+a.cost||0,dur=c.dur||1;
+    let planPct=c.ef<=day?1:(c.es>=day?0:(day-c.es)/dur); planPct=clamp(planPct,0,1);
+    const pv=cost*planPct, ev=activityEV(a,c,day), ac=+a.actualCost||0;
+    return{name:a.name,PV:pv,EV:ev,AC:ac,SPI:spiVal(pv,ev),CPI:cpiVal(ac,ev),EAC:(ac>0&&ev>0)?(cost/(ev/ac)):cost};});
+  const snap={id:uid(),ts:Date.now(),day,BAC:e.BAC,PV:e.PV,EV:e.EV,AC:e.AC,SPI:e.SPI,CPI:e.CPI,SV:e.SV,CV:e.CV,EAC:e.EAC_cpi,VAC:e.VAC,TCPI:e.TCPI,rows};
+  const i=S.snapshots.findIndex(s=>s.day===day);
+  if(i>=0){ if(!confirm('Day '+day+' 기록이 이미 있습니다. 현재 값으로 갱신할까요?')) return; S.snapshots[i]=snap; }
+  else S.snapshots.push(snap);
+  commit(); toast('Day '+day+' 성과를 기록했습니다');
+}
+function addChange(){const t=val('cl_text');if(!t)return;S.changeLog.push({id:uid(),ts:Date.now(),text:t,decision:val('cl_dec')||'검토중'});commit();}
+
+/* ===================== 감시·통제 — 상태판단·효율·EAC·조치 ===================== */
+ROUTES.monitor=()=>{
+  if(!S.activities.length)return notReady('분석할 데이터가 없습니다. 계획·실행을 먼저 진행하세요.');
+  const {projEnd}=scheduleCPM(S.activities); const day=S._statusDay==null?projEnd:S._statusDay; const e=computeEVM(S,day);
+  const cls=v=>v>0?'pos':v<0?'neg':''; const spiCls=e.SPI>=1?'pos':e.SPI>=.9?'warn':'neg'; const cpiCls=e.CPI>=1?'pos':e.CPI>=.9?'warn':'neg';
+  return`<div class="eyebrow">Monitoring & Controlling · 감시·통제</div><h2>획득가치(EVM) 대시보드</h2>
+  <p class="lead">상태일 기준 PV·EV·AC를 비교해 일정·원가를 진단하고, 세 가지 EAC 시나리오와 상황별 조치를 검토합니다.</p>
+  <div class="card" style="padding:14px 20px"><div class="flex" style="gap:14px"><b style="font-size:12px">상태 기준일</b>
+    <input type="range" min="0" max="${projEnd}" value="${day}" style="flex:1" oninput="S._statusDay=+this.value;render()">
+    <b class="mono-sm">Day ${day} / ${projEnd}</b></div></div>
+  <div class="kpis">
+    <div class="kpi"><div class="lab">SPI · 일정성과</div><div class="val ${spiCls}">${e.SPI.toFixed(2)}</div><div class="foot">${e.SPI>=1?'일정 준수/선행':'일정 지연'}</div></div>
+    <div class="kpi"><div class="lab">CPI · 원가성과</div><div class="val ${cpiCls}">${e.CPI.toFixed(2)}</div><div class="foot">${e.CPI>=1?'예산 내':'예산 초과'}</div></div>
+    <div class="kpi"><div class="lab">SV · 일정편차</div><div class="val ${cls(e.SV)}" style="font-size:19px">${won(e.SV)}</div></div>
+    <div class="kpi"><div class="lab">CV · 원가편차</div><div class="val ${cls(e.CV)}" style="font-size:19px">${won(e.CV)}</div></div>
+    <div class="kpi"><div class="lab">TCPI · 잔여효율목표 (${e.tcpiBasis})</div><div class="val ${e.TCPI>1.05?'neg':e.TCPI>1?'warn':'pos'}">${e.TCPI.toFixed(2)}</div><div class="foot">${e.overBudget?'예산 내 불가 → EAC 기준':(e.TCPI>1?'남은 작업 더 효율 필요':'여유 있음')}</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>가치·완료추정 <span class="kaflag">원가관리</span></h3><p class="sub">7.4 Control Costs — EVM</p>
+      ${evmBar('PV 계획가치',e.PV,e.BAC,'var(--steel-lo)')}${evmBar('EV 획득가치',e.EV,e.BAC,'var(--sage)')}${evmBar('AC 실제원가',e.AC,e.BAC,'var(--clay)')}
+      <table style="margin-top:14px"><tbody>
+        <tr><td>BAC 완료시점예산</td><td class="num">${won(e.BAC)}</td></tr>
+        <tr><td>ETC 잔여추정 <span class="mono-sm">(EAC−AC)</span></td><td class="num">${won(e.ETC)}</td></tr>
+        <tr><td>EAC ① 현재효율 지속 <span class="mono-sm">BAC/CPI</span></td><td class="num">${won(e.EAC_cpi)}</td></tr>
+        <tr><td>EAC ② 잔여는 계획대로 <span class="mono-sm">AC+(BAC−EV)</span></td><td class="num">${won(e.EAC_atypical)}</td></tr>
+        <tr><td>EAC ③ 일정·원가 동시 <span class="mono-sm">AC+(BAC−EV)/(CPI·SPI)</span></td><td class="num">${won(e.EAC_tcpi)}</td></tr>
+        <tr class="tot"><td>VAC 완료편차 <span class="mono-sm">(BAC−EAC①)</span></td><td class="num" style="color:${e.VAC>=0?'var(--sage)':'var(--clay)'}">${won(e.VAC)}</td></tr>
+      </tbody></table></div>
+    <div class="card"><h3>상태 판단 및 조치 계획 <span class="kaflag">통합관리</span></h3><p class="sub">4.5 Monitor and Control Project Work</p>
+      ${diagnose(e)}
+      <h3 style="margin:16px 0 6px;font-size:13px">상황별 조치 선택 <span class="pill n">Day ${day}</span></h3>
+      <p class="mono-sm" style="margin:0 0 8px">현재 상태 기록일(Day ${day})에 대한 대응을 골라 조치 로그에 기록합니다.</p>
+      ${actionPicker(e,day)}
+      ${S.actions.length?`<h3 style="margin:16px 0 6px;font-size:13px">조치 로그</h3>${S.actions.slice().sort((a,b)=>(a.day||0)-(b.day||0)).map(x=>`<div class="flex between" style="padding:7px 0;border-bottom:1px solid var(--line)"><span><span class="pill n">Day ${x.day!=null?x.day:'—'}</span> <span class="mono-sm">${new Date(x.ts).toLocaleDateString('ko-KR')}</span> ${esc(x.action)}</span><span class="del" onclick="del('actions','${x.id}')">×</span></div>`).join('')}`:''}
+      <h3 style="margin:16px 0 6px;font-size:13px">주공정 상태 <span class="pill n">Day ${day}</span></h3>
+      <table><thead><tr><th>주공정 활동</th><th>SPI</th><th>CPI</th></tr></thead><tbody>
+      ${e.acts.filter(a=>a.critical).map(a=>{const src=S.activities.find(x=>x.id===a.id); const c=e.cxById[a.id];
+        const cost=+src.cost||0, dur=c.dur||1; let pp=c.ef<=day?1:(c.es>=day?0:(day-c.es)/dur); pp=clamp(pp,0,1);
+        const pv=cost*pp, ev=activityEV(src,c,day), ac=+src.actualCost||0;
+        const spi=spiVal(pv,ev), cpi=cpiVal(ac,ev);
+        return`<tr><td>${esc(a.name)}</td><td class="num" style="color:${idxColor(spi)}">${idxTxt(spi)}</td><td class="num" style="color:${idxColor(cpi)}">${idxTxt(cpi)}</td></tr>`;}).join('')||emptyRow(3)}</tbody></table></div>
+  </div>
+  ${snapshotSection()}`;
+};
+/* 실행 단계에서 기록한 상태일 스냅샷을 시점별 추세 + 활동별 상세로 표시 */
+function snapshotSection(){
+  const snaps=S.snapshots.slice().sort((a,b)=>a.day-b.day);
+  if(!snaps.length) return `<div class="card"><h3>상태일 기록 이력 <span class="kaflag">통합관리</span></h3>
+    <p class="sub">실행 단계에서 '상태일 성과 기록'으로 저장한 스냅샷이 여기에 시점별로 쌓입니다</p>
+    <div class="empty">아직 기록된 상태일이 없습니다. 실행 화면에서 상태일을 정하고 <b>＋Day 기록</b>을 누르세요.</div></div>`;
+  const cw=v=>v>=1?'var(--sage)':v>=.9?'var(--amber)':'var(--clay)';
+  const trend=`<div style="overflow-x:auto"><table><thead><tr><th>상태일</th><th>PV</th><th>EV</th><th>AC</th><th>SV</th><th>CV</th><th>SPI</th><th>CPI</th><th>EAC</th><th>VAC</th><th></th></tr></thead><tbody>
+    ${snaps.map(s=>`<tr>
+      <td><b>Day ${s.day}</b> <span class="mono-sm">${new Date(s.ts).toLocaleDateString('ko-KR')}</span></td>
+      <td class="num mono-sm">${won(s.PV)}</td><td class="num mono-sm">${won(s.EV)}</td><td class="num mono-sm">${won(s.AC)}</td>
+      <td class="num mono-sm" style="color:${s.SV>=0?'var(--sage)':'var(--clay)'}">${won(s.SV)}</td>
+      <td class="num mono-sm" style="color:${s.CV>=0?'var(--sage)':'var(--clay)'}">${won(s.CV)}</td>
+      <td class="num" style="color:${cw(s.SPI)}">${s.SPI.toFixed(2)}</td>
+      <td class="num" style="color:${cw(s.CPI)}">${s.CPI.toFixed(2)}</td>
+      <td class="num mono-sm">${won(s.EAC)}</td>
+      <td class="num mono-sm" style="color:${s.VAC>=0?'var(--sage)':'var(--clay)'}">${won(s.VAC)}</td>
+      <td><span class="flex" style="gap:4px"><button class="btn sm gho" title="이 상태일로 이동" onclick="S._statusDay=${s.day};render()">보기</button><span class="del" onclick="delSnap('${s.id}')">×</span></span></td></tr>`).join('')}
+  </tbody></table></div>`;
+  const details=snaps.map(s=>`<details class="act"><summary>Day ${s.day} 활동별 상세 <span class="act-legend">SPI ${s.SPI.toFixed(2)} · CPI ${s.CPI.toFixed(2)} · EAC ${won(s.EAC)}</span></summary>
+    <div class="act-body"><div style="overflow-x:auto"><table><thead><tr><th>활동</th><th>PV</th><th>EV</th><th>AC</th><th>SPI</th><th>CPI</th><th>EAC</th></tr></thead><tbody>
+    ${s.rows.map(r=>`<tr><td>${esc(r.name)}</td><td class="num mono-sm">${won(r.PV)}</td><td class="num mono-sm">${won(r.EV)}</td><td class="num mono-sm">${won(r.AC)}</td>
+      <td class="num" style="color:${idxColor(r.SPI)}">${idxTxt(r.SPI)}</td>
+      <td class="num" style="color:${idxColor(r.CPI)}">${idxTxt(r.CPI)}</td>
+      <td class="num mono-sm">${won(r.EAC)}</td></tr>`).join('')}</tbody></table></div></div></details>`).join('');
+  return `<div class="card"><h3>상태일 기록 이력 <span class="kaflag">통합관리</span></h3>
+    <p class="sub">4.5 Monitor and Control Project Work · 시점별 성과 추세와 활동별 상세</p>
+    ${trend}
+    <h3 style="margin:18px 0 8px;font-size:13px">기록별 활동 상세</h3>${details}</div>`;
+}
+function delSnap(id){S.snapshots=S.snapshots.filter(s=>s.id!==id);commit();}
+function evmBar(lab,v,max,col){const p=max?clamp(v/max*100,0,100):0;return`<div style="margin-bottom:11px"><div class="flex between mono-sm"><span>${lab}</span><span>${won(v)}</span></div><div class="bar-h"><i style="width:${p}%;background:${col}"></i></div></div>`;}
+function diagnose(e){const items=[];
+  if(e.SPI<0.95)items.push(['r',`일정 지연 (SPI ${e.SPI.toFixed(2)}) — 주공정에 자원 추가(공정 압축) 또는 병행 실행 검토.`]);
+  else if(e.SPI>1.05)items.push(['g',`일정 선행 (SPI ${e.SPI.toFixed(2)}) — 여유를 리스크 대비로 재배분 가능.`]);
+  else items.push(['n','일정 정상 범위.']);
+  if(e.CPI<0.95)items.push(['r',`원가 초과 (CPI ${e.CPI.toFixed(2)}) — EAC가 예산 상회. 범위 재확인·원가 통제 필요.`]);
+  else if(e.CPI>1.05)items.push(['g',`원가 절감 (CPI ${e.CPI.toFixed(2)}) — 효율적으로 집행 중.`]);
+  else items.push(['n','원가 정상 범위.']);
+  if(e.TCPI>1.1)items.push(['a',`잔여 목표효율 TCPI ${e.TCPI.toFixed(2)} (${e.tcpiBasis} 기준) — ${e.overBudget?'예산 내 완료 불가, EAC 기준으로도 남은 작업을 크게 효율화해야 함':'남은 작업을 지금보다 크게 효율화해야 BAC 달성'}. 현실성 재검토.`]);
+  return items.map(([k,t])=>`<div class="hint" style="border-left-color:${k==='r'?'var(--clay)':k==='g'?'var(--sage)':k==='a'?'var(--amber)':'var(--steel-lo)'};background:${k==='r'?'rgba(168,70,58,.06)':k==='g'?'rgba(74,122,92,.07)':k==='a'?'rgba(192,125,42,.07)':'rgba(43,74,111,.06)'}">${t}</div>`).join('');
+}
+/* 상황별 조치 후보를 지표에 맞춰 제시 */
+function actionPicker(e,day){
+  const opts=[];
+  if(e.SPI<0.95){opts.push('공정 압축(Crashing): 주공정에 자원 추가 투입');opts.push('공정 중첩(Fast-tracking): 선후행 활동 병행');}
+  if(e.CPI<0.95){opts.push('원가 통제: 저부가 활동 축소·재협상');opts.push('예비비(Contingency) 사용 승인 요청');}
+  if(e.SPI>=0.95&&e.CPI>=0.95){opts.push('현 계획 유지: 베이스라인 정상, 모니터링 지속');}
+  if(e.TCPI>1.1){opts.push('베이스라인 재설정: 목표효율 비현실적 → 재계획');}
+  opts.push('변경요청 발행: 범위·일정·예산 공식 조정');
+  return`<div class="rowadd">${sel2v('조치 선택',opts.map(o=>({v:o,t:o})),'',`window._pick=this.value`)}
+    <button class="btn sm pri" onclick="logAction(${day})">조치 기록</button></div>`;
+}
+function logAction(day){const a=window._pick;if(!a){toast('조치를 선택하세요');return;}
+  S.actions.push({id:uid(),ts:Date.now(),day:day,action:a});window._pick=null;commit();toast('Day '+day+' 조치를 기록했습니다');}
+
+/* ===================== 종료 ===================== */
+ROUTES.close=()=>{const e=computeEVM(S);const allDone=S.activities.length&&S.activities.every(a=>+a.progress>=100);
+  return`<div class="eyebrow">Closing · 종료</div><h2>프로젝트 종료</h2>
+  <p class="lead">인도물을 검수하고 자원을 해제하며, 교훈을 정리해 조직 자산으로 남깁니다.</p>
+  <div class="grid2">
+    <div class="card"><h3>종료 체크리스트 <span class="kaflag">통합관리</span></h3><p class="sub">4.7 Close Project or Phase</p>
+      ${chk('deliverablesAccepted','인도물 검수·인수 완료',allDone?'':'모든 활동 진척 100% 권장')}${chk('docsArchived','문서 아카이브 완료')}${chk('resourcesReleased','자원·팀 해제 완료')}
+      <div class="hint" style="margin-top:14px">최종 성과: SPI <b>${e.SPI.toFixed(2)}</b> · CPI <b>${e.CPI.toFixed(2)}</b> · VAC <b>${won(e.VAC)}</b></div></div>
+    <div class="card"><h3>교훈 정리 <span class="kaflag">의사소통관리</span></h3><p class="sub">Lessons Learned Register</p>
+      <table><thead><tr><th>구분</th><th>교훈</th><th></th></tr></thead><tbody>
+      ${S.lessons.map(l=>`<tr><td style="width:90px">${sel(['잘된 점','개선점','권고'],l.category,`upd('lessons','${l.id}','category',this.value)`)}</td>
+        <td><input value="${esc(l.text)}" onchange="upd('lessons','${l.id}','text',this.value)"></td>
+        <td><span class="del" onclick="del('lessons','${l.id}')">×</span></td></tr>`).join('')||emptyRow(3)}</tbody></table>
+      <div class="rowadd"><input id="ls_text" placeholder="예) 초기 요구사항 확정 지연이 일정에 영향"><button class="btn sm pri" onclick="addLesson()">추가</button></div></div>
+  </div>
+  ${(S.closure.deliverablesAccepted&&S.closure.docsArchived&&S.closure.resourcesReleased)?'<div class="card" style="text-align:center;background:rgba(74,122,92,.06);border-color:var(--sage)"><h3 style="color:var(--sage)">✓ 프로젝트 종료 완료</h3><p class="sub" style="margin:0">전 과정을 수행했습니다. 내보내기로 결과를 저장하거나 새 프로젝트로 다시 실습하세요.</p></div>':''}`;
+};
+function chk(key,label,note){return`<label class="flex" style="gap:9px;padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px"><input type="checkbox" class="chk" ${S.closure[key]?'checked':''} onchange="S.closure['${key}']=this.checked;commit()"><span>${label}${note?` <em class="mono-sm">— ${note}</em>`:''}</span></label>`;}
+function addLesson(){const t=val('ls_text');if(!t)return;S.lessons.push({id:uid(),text:t,category:'개선점'});commit();}
+
+/* ===================== 통합 대시보드 ===================== */
+ROUTES.board=()=>{const e=computeEVM(S);const {projEnd}=scheduleCPM(S.activities);
+  const prog=S.activities.length?Math.round(S.activities.reduce((s,a)=>s+(+a.progress||0),0)/S.activities.length):0;
+  const ka=[['통합관리',S.charterApproved||S.changeLog.length||S.actions.length],['범위관리',S.requirements.length&&S.deliverables.length],['일정관리',S.activities.length],['원가관리',S.activities.some(a=>+a.cost>0)],['품질관리',S.quality.length],['리스크관리',S.risks.length],['자원관리',S.activities.some(a=>+a.resources>0)],['의사소통관리',S.comms.length],['이해관계자관리',S.stakeholders.length],['조달관리',false]];
+  return`<div class="eyebrow">Integration · 통합 대시보드</div><h2>${esc(S.meta.name)}</h2>
+  <p class="lead">${esc(S.meta.goal)||'프로젝트 전반의 상태를 한눈에 봅니다.'}</p>
+  <div class="kpis">
+    <div class="kpi"><div class="lab">전체 진척</div><div class="val">${prog}%</div><div class="bar-h"><i style="width:${prog}%"></i></div></div>
+    <div class="kpi"><div class="lab">예산(BAC)</div><div class="val" style="font-size:19px">${won(e.BAC)}</div></div>
+    <div class="kpi"><div class="lab">EAC①</div><div class="val" style="font-size:19px;color:${e.VAC>=0?'var(--sage)':'var(--clay)'}">${won(e.EAC_cpi)}</div></div>
+    <div class="kpi"><div class="lab">SPI / CPI</div><div class="val" style="font-size:19px">${e.SPI.toFixed(2)}/${e.CPI.toFixed(2)}</div></div>
+    <div class="kpi"><div class="lab">총 기간</div><div class="val">${projEnd}<span style="font-size:14px">일</span></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>10대 지식영역 커버리지</h3><p class="sub">계획에 반영된 영역</p>
+      <table><tbody>${ka.map(([k,v])=>`<tr><td>${k}</td><td style="width:80px" class="num">${v?'<span class="pill g">반영</span>':'<span class="pill n">미반영</span>'}</td></tr>`).join('')}</tbody></table>
+      <div class="mono-sm" style="margin-top:10px">조달관리는 심화 실습용으로 이후 확장 예정입니다.</div></div>
+    <div class="card"><h3>산출물 요약</h3><p class="sub">WBS 4단계 · 계획 산출물</p>
+      <table><tbody>
+        <tr><td>이해관계자 / 요구사항</td><td class="num">${S.stakeholders.length} / ${S.requirements.length}</td></tr>
+        <tr><td>인도물 / 구성요소 / WP</td><td class="num">${S.deliverables.length} / ${S.components.length} / ${S.workPackages.length}</td></tr>
+        <tr><td>활동</td><td class="num">${S.activities.length}</td></tr>
+        <tr><td>리스크 / 품질 / 의사소통</td><td class="num">${S.risks.length} / ${S.quality.length} / ${S.comms.length}</td></tr>
+        <tr><td>변경요청 / 조치 / 교훈</td><td class="num">${S.changeLog.length} / ${S.actions.length} / ${S.lessons.length}</td></tr>
+      </tbody></table></div>
+  </div>`;
+};
+
+/* ===================== 공통 헬퍼 ===================== */
+function notReady(m){return`<div class="eyebrow">Not ready</div><h2>준비 필요</h2><div class="empty">${m}</div>`;}
+function emptyRow(c){return`<tr><td colspan="${c}" style="text-align:center;color:var(--muted);padding:16px">아직 항목이 없습니다</td></tr>`;}
+function sel(opts,cur,handler){return`<select onchange="${handler}">${opts.map(o=>`<option ${o===cur?'selected':''}>${o}</option>`).join('')}</select>`;}
+function sel2(id,opts){return`<select id="${id}"><option value="">선택…</option>${opts.map(o=>`<option value="${o.v}">${esc(o.t)}</option>`).join('')}</select>`;}
+function sel2v(ph,opts,cur,handler){return`<select onchange="${handler}"><option value="">${ph}…</option>${opts.map(o=>`<option value="${esc(o.v)}" ${o.v===cur?'selected':''}>${esc(o.t)}</option>`).join('')}</select>`;}
+function val(id){const el=document.getElementById(id);return el?el.value.trim():'';}
+function upd(coll,id,field,v){const it=S[coll].find(x=>x.id===id);if(!it)return;it[field]=v;DB.save(S);
+  const liveFields=['duration','work','resources','cost','progress','actualCost','evOverride'];
+  if(liveFields.includes(field)||coll==='activities'&&field==='name'||route==='plan'&&planStep>=4||route==='execute'||route==='monitor')render();
+}
+function del(coll,id){S[coll]=S[coll].filter(x=>x.id!==id);
+  if(coll==='deliverables'){const cids=S.components.filter(c=>c.deliverableId===id).map(c=>c.id);S.components=S.components.filter(c=>c.deliverableId!==id);
+    const wids=S.workPackages.filter(w=>cids.includes(w.componentId)).map(w=>w.id);S.workPackages=S.workPackages.filter(w=>!cids.includes(w.componentId));S.activities=S.activities.filter(a=>!wids.includes(a.wpId));}
+  if(coll==='components'){const wids=S.workPackages.filter(w=>w.componentId===id).map(w=>w.id);S.workPackages=S.workPackages.filter(w=>w.componentId!==id);S.activities=S.activities.filter(a=>!wids.includes(a.wpId));}
+  if(coll==='workPackages')S.activities=S.activities.filter(a=>a.wpId!==id);
+  if(coll==='activities')S.activities.forEach(a=>a.deps=(a.deps||[]).filter(d=>d.predId!==id));
+  commit();}
+
+function ganttHTML(acts,projEnd){
+  if(!projEnd)return'<div class="empty">기간을 입력하면 간트가 표시됩니다</div>';
+  const scale=projEnd,cols=Math.min(scale,30);
+  const head=Array.from({length:cols},(_,i)=>`<th class="g">${Math.round(i*scale/cols)+1}</th>`).join('');
+  const rows=acts.map(a=>{const cells=Array.from({length:cols},(_,i)=>{const ds=i*scale/cols,de=(i+1)*scale/cols;const on=a.es<de&&a.ef>ds;
+    if(!on)return'<td class="g"></td>';const prog=clamp((+a.progress||0)/100,0,1);
+    return`<td class="g"><div class="bar ${a.critical?'crit':''}"><div class="prog" style="width:${prog*100}%"></div></div></td>`;}).join('');
+    return`<tr><td style="white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis">${esc(a.name)}</td>${cells}</tr>`;}).join('');
+  return`<div class="gantt"><table><thead><tr><th style="min-width:120px">활동</th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+/* ===================== 템플릿 (4단계 WBS 시드) ===================== */
+function mkAct(o){return Object.assign({id:uid(),durMode:'derive',work:5,resources:1,duration:5,deps:[],cost:0,evMethod:'percent',milestones:[],progress:0,evOverride:'',actualCost:0},o);}
+const TEMPLATES={
+  festival(){const s=blankProject({name:'교내 학과 축제 개최',sponsor:'학생회',goal:'2일간 축제를 예산 내 개최, 참여 만족도 4.0/5 이상',constraints:'예산 500만원, 준비 6주',assumptions:'강당 대관 확정'});s.charterApproved=true;
+    [['학생회장','스폰서','높음','높음','긴밀 관리'],['참여 학생','고객','높음','낮음','만족 유지'],['학과 사무실','지원','중간','중간','정보 제공']].forEach(x=>s.stakeholders.push({id:uid(),name:x[0],role:x[1],interest:x[2],power:x[3],strategy:x[4]}));
+    ['부스 20개 이상 운영','저녁 공연 2시간','안전 인력 배치'].forEach((t,i)=>s.requirements.push({id:uid(),text:t,priority:i===2?'필수(Must)':'권장(Should)',source:s.stakeholders[i%3].name}));
+    const d1={id:uid(),code:'1.1',name:'기획·홍보'},d2={id:uid(),code:'1.2',name:'행사 운영'};s.deliverables.push(d1,d2);
+    const c1={id:uid(),deliverableId:d1.id,code:'1.1.1',name:'콘텐츠'},c2={id:uid(),deliverableId:d1.id,code:'1.1.2',name:'홍보'},c3={id:uid(),deliverableId:d2.id,code:'1.2.1',name:'현장'};s.components.push(c1,c2,c3);
+    const w1={id:uid(),componentId:c1.id,code:'1.1.1.1',name:'프로그램 기획'},w2={id:uid(),componentId:c2.id,code:'1.1.2.1',name:'홍보물 제작'},w3={id:uid(),componentId:c3.id,code:'1.2.1.1',name:'부스 설치'},w4={id:uid(),componentId:c3.id,code:'1.2.1.2',name:'공연 진행'};s.workPackages.push(w1,w2,w3,w4);
+    const a1=mkAct({wpId:w1.id,name:'프로그램 확정',work:5,resources:1,cost:0,evMethod:'0/100'});
+    const a2=mkAct({wpId:w2.id,name:'포스터·SNS 홍보',work:14,resources:2,cost:800000,deps:[{predId:a1.id,type:'FS',lag:0}],evMethod:'percent'});
+    const a3=mkAct({wpId:w3.id,name:'부스 설치·점검',work:4,resources:2,cost:1500000,deps:[{predId:a1.id,type:'FS',lag:2}],evMethod:'50/50'});
+    const a4=mkAct({wpId:w4.id,name:'공연·행사 운영',work:2,resources:1,durMode:'fixed',duration:2,cost:2000000,deps:[{predId:a2.id,type:'FS',lag:0},{predId:a3.id,type:'FS',lag:0}],evMethod:'milestone',milestones:[{id:uid(),name:'1일차',weight:50,done:false},{id:uid(),name:'2일차',weight:50,done:false}]});
+    s.activities.push(a1,a2,a3,a4);
+    s.risks.push({id:uid(),text:'우천으로 야외 부스 차질',prob:'중',impact:'상',response:'완화'});
+    s.quality.push({id:uid(),metric:'참여 만족도',target:'4.0/5 이상',method:'현장 설문'});
+    s.comms.push({id:uid(),info:'주간 준비 현황',audience:'학생회장',freq:'주간',channel:'회의'});return s;},
+  app(){const s=blankProject({name:'모바일 앱 MVP 출시',sponsor:'프로덕트 오너',goal:'핵심 기능 3종 MVP를 12주 내 출시',constraints:'예산 8천만원, 인력 4명',assumptions:'결제 API 이용 가능'});s.charterApproved=true;
+    [['프로덕트 오너','스폰서','높음','높음','긴밀 관리'],['개발팀','수행','높음','중간','긴밀 관리'],['베타 사용자','고객','중간','낮음','정보 제공']].forEach(x=>s.stakeholders.push({id:uid(),name:x[0],role:x[1],interest:x[2],power:x[3],strategy:x[4]}));
+    ['회원 가입·로그인','핵심 기능 화면 3종','간편결제 연동'].forEach(t=>s.requirements.push({id:uid(),text:t,priority:'필수(Must)',source:s.stakeholders[0].name}));
+    const d1={id:uid(),code:'1.1',name:'설계'},d2={id:uid(),code:'1.2',name:'개발'},d3={id:uid(),code:'1.3',name:'출시'};s.deliverables.push(d1,d2,d3);
+    const c1={id:uid(),deliverableId:d1.id,code:'1.1.1',name:'UX'},c2={id:uid(),deliverableId:d2.id,code:'1.2.1',name:'백엔드'},c3={id:uid(),deliverableId:d2.id,code:'1.2.2',name:'프론트'},c4={id:uid(),deliverableId:d3.id,code:'1.3.1',name:'배포'};s.components.push(c1,c2,c3,c4);
+    const w1={id:uid(),componentId:c1.id,code:'1.1.1.1',name:'요구·UX 설계'},w2={id:uid(),componentId:c2.id,code:'1.2.1.1',name:'API·DB'},w3={id:uid(),componentId:c3.id,code:'1.2.2.1',name:'화면 구현'},w4={id:uid(),componentId:c4.id,code:'1.3.1.1',name:'테스트·배포'};s.workPackages.push(w1,w2,w3,w4);
+    const a1=mkAct({wpId:w1.id,name:'UX/화면 설계',work:10,resources:1,cost:12000000,evMethod:'percent'});
+    const a2=mkAct({wpId:w2.id,name:'API·DB 구축',work:40,resources:2,cost:25000000,deps:[{predId:a1.id,type:'FS',lag:0}],evMethod:'percent'});
+    const a3=mkAct({wpId:w3.id,name:'화면 구현',work:36,resources:2,cost:20000000,deps:[{predId:a1.id,type:'SS',lag:5}],evMethod:'percent'});
+    const a4=mkAct({wpId:w4.id,name:'통합 테스트·배포',work:8,resources:1,cost:8000000,deps:[{predId:a2.id,type:'FS',lag:0},{predId:a3.id,type:'FS',lag:0}],evMethod:'0/100'});
+    s.activities.push(a1,a2,a3,a4);
+    s.risks.push({id:uid(),text:'결제 API 심사 지연',prob:'중',impact:'상',response:'완화'},{id:uid(),text:'핵심 개발자 이탈',prob:'하',impact:'상',response:'전가'});
+    s.quality.push({id:uid(),metric:'크래시 프리율',target:'99.5% 이상',method:'모니터링'});
+    s.comms.push({id:uid(),info:'스프린트 리뷰',audience:'프로덕트 오너',freq:'격주',channel:'회의'});return s;},
+  uav(){const s=blankProject({name:'소형 무인기 시제 개발',sponsor:'사업단',goal:'요구 성능 충족 시제기 1대 개발·비행시험 통과',constraints:'예산 15억, 40주',assumptions:'핵심 부품 리드타임 확보'});s.charterApproved=true;
+    [['사업단장','스폰서','높음','높음','긴밀 관리'],['시험평가팀','검증','높음','중간','긴밀 관리'],['부품 협력사','조달','중간','중간','정보 제공']].forEach(x=>s.stakeholders.push({id:uid(),name:x[0],role:x[1],interest:x[2],power:x[3],strategy:x[4]}));
+    ['체공시간 2시간 이상','자동 복귀 기능','실시간 영상 전송'].forEach((t,i)=>s.requirements.push({id:uid(),text:t,priority:'필수(Must)',source:s.stakeholders[i%3].name}));
+    const d1={id:uid(),code:'1.1',name:'설계'},d2={id:uid(),code:'1.2',name:'제작·통합'},d3={id:uid(),code:'1.3',name:'시험'};s.deliverables.push(d1,d2,d3);
+    const c1={id:uid(),deliverableId:d1.id,code:'1.1.1',name:'체계'},c2={id:uid(),deliverableId:d2.id,code:'1.2.1',name:'조달'},c3={id:uid(),deliverableId:d2.id,code:'1.2.2',name:'통합'},c4={id:uid(),deliverableId:d3.id,code:'1.3.1',name:'비행'};s.components.push(c1,c2,c3,c4);
+    const w1={id:uid(),componentId:c1.id,code:'1.1.1.1',name:'형상·체계 설계'},w2={id:uid(),componentId:c2.id,code:'1.2.1.1',name:'부품 조달'},w3={id:uid(),componentId:c3.id,code:'1.2.2.1',name:'조립·통합'},w4={id:uid(),componentId:c4.id,code:'1.3.1.1',name:'비행 시험'};s.workPackages.push(w1,w2,w3,w4);
+    const a1=mkAct({wpId:w1.id,name:'체계 설계',work:80,resources:1,cost:300000000,evMethod:'milestone',milestones:defaultMilestones()});
+    const a2=mkAct({wpId:w2.id,name:'핵심 부품 조달',durMode:'fixed',duration:60,cost:600000000,deps:[{predId:a1.id,type:'FS',lag:5}],evMethod:'0/100'});
+    const a3=mkAct({wpId:w3.id,name:'조립·체계 통합',work:70,resources:1,cost:400000000,deps:[{predId:a2.id,type:'FS',lag:0}],evMethod:'percent'});
+    const a4=mkAct({wpId:w4.id,name:'지상·비행 시험',work:40,resources:1,cost:200000000,deps:[{predId:a3.id,type:'FS',lag:0}],evMethod:'milestone',milestones:[{id:uid(),name:'지상시험',weight:40,done:false},{id:uid(),name:'초도비행',weight:30,done:false},{id:uid(),name:'성능확인',weight:30,done:false}]});
+    s.activities.push(a1,a2,a3,a4);
+    s.risks.push({id:uid(),text:'수입 부품 납기 지연',prob:'상',impact:'상',response:'완화'},{id:uid(),text:'비행 시험 중 결함',prob:'중',impact:'상',response:'수용'});
+    s.quality.push({id:uid(),metric:'체공시간',target:'120분 이상',method:'비행 계측'});
+    s.comms.push({id:uid(),info:'주간 진도 보고',audience:'사업단장',freq:'주간',channel:'보고서'});return s;}
+};
+
+render();
+</script>
+</body>
+</html>
